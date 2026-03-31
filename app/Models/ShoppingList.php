@@ -37,7 +37,10 @@ class ShoppingList {
      */
     public function getListById($listId) {
         $stmt = $this->pdo->prepare('
-            SELECT * FROM shopping_lists WHERE id = ?
+            SELECT sl.*, u.name as creator_name 
+            FROM shopping_lists sl
+            LEFT JOIN users u ON sl.user_id = u.id
+            WHERE sl.id = ?
         ');
         $stmt->execute([$listId]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -268,6 +271,20 @@ class ShoppingList {
         $stmt->execute([$listId]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return (float)$result['total'];
+    }
+
+    /**
+     * Récupérer toutes les listes (admin seulement)
+     * @return array
+     */
+    public function getAllLists() {
+        $stmt = $this->pdo->query('
+            SELECT sl.id, sl.name, sl.description, sl.user_id, sl.is_completed, sl.created_at, u.name as creator_name 
+            FROM shopping_lists sl
+            LEFT JOIN users u ON sl.user_id = u.id
+            ORDER BY sl.created_at DESC
+        ');
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**

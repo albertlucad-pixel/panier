@@ -103,7 +103,9 @@ class Product {
         }
         if (isset($data['nutri_score'])) {
             $fields[] = 'nutri_score = ?';
-            $values[] = $data['nutri_score'];
+            // Convertir la chaîne vide en NULL
+            $nutriScore = empty($data['nutri_score']) ? null : $data['nutri_score'];
+            $values[] = $nutriScore;
         }
 
         if (empty($fields)) {
@@ -122,17 +124,31 @@ class Product {
      * Supprimer un produit
      * @param int $productId
      * @param int $userId Vérifier que l'utilisateur est propriétaire
+     * @param bool $isAdmin Si true, ne pas vérifier la propriété
      * @return bool
      */
-    public function delete($productId, $userId) {
-        // Vérifier que l'utilisateur est propriétaire
+    public function delete($productId, $userId, $isAdmin = false) {
+        // Vérifier que l'utilisateur est propriétaire (sauf si admin)
         $product = $this->getProductById($productId);
-        if (!$product || $product['user_id'] != $userId) {
+        if (!$product) {
+            return false;
+        }
+        
+        if (!$isAdmin && $product['user_id'] != $userId) {
             return false;
         }
 
-        $stmt = $this->pdo->prepare('DELETE FROM items WHERE id = ?');
-        return $stmt->execute([$productId]);
+        try {
+            // D'abord, supprimer tous les liens dans list_item
+            $stmt = $this->pdo->prepare('DELETE FROM list_item WHERE item_id = ?');
+            $stmt->execute([$productId]);
+
+            // Ensuite, supprimer le produit
+            $stmt = $this->pdo->prepare('DELETE FROM items WHERE id = ?');
+            return $stmt->execute([$productId]);
+        } catch (Exception $e) {
+            return false;
+        }
     }
 
     /**

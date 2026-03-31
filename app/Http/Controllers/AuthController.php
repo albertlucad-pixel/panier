@@ -15,7 +15,7 @@ class AuthController {
      * Afficher la page de connexion
      */
     public function showLogin() {
-        include 'views/auth/login.php';
+        include PROJECT_ROOT . 'views/auth/login.php';
     }
 
     /**
@@ -23,8 +23,7 @@ class AuthController {
      */
     public function login() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->showLogin();
-            return;
+            return; // Le router affichera la vue
         }
 
         $email = $_POST['email'] ?? '';
@@ -40,8 +39,8 @@ class AuthController {
         }
 
         if (!empty($errors)) {
-            include 'views/auth/login.php';
-            return;
+            $GLOBALS['login_errors'] = $errors;
+            return; // Le router affichera la vue avec les erreurs
         }
 
         // Authentifier
@@ -49,8 +48,8 @@ class AuthController {
         
         if (!$user) {
             $errors[] = 'Email ou mot de passe incorrect';
-            include 'views/auth/login.php';
-            return;
+            $GLOBALS['login_errors'] = $errors;
+            return; // Le router affichera la vue avec les erreurs
         }
 
         // Créer la session
@@ -67,7 +66,7 @@ class AuthController {
      * Afficher la page d'inscription
      */
     public function showRegister() {
-        include 'views/auth/register.php';
+        include PROJECT_ROOT . 'views/auth/register.php';
     }
 
     /**
@@ -75,14 +74,13 @@ class AuthController {
      */
     public function register() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->showRegister();
-            return;
+            return; // Le router affichera la vue
         }
 
         $name = $_POST['name'] ?? '';
         $email = $_POST['email'] ?? '';
         $password = $_POST['password'] ?? '';
-        $confirmPassword = $_POST['confirm_password'] ?? '';
+        $confirmPassword = $_POST['password_confirm'] ?? '';
         $errors = [];
 
         // Validation
@@ -98,16 +96,24 @@ class AuthController {
         if (empty($password)) {
             $errors[] = 'Mot de passe requis';
         }
-        if (strlen($password) < 6) {
-            $errors[] = 'Mot de passe doit avoir au minimum 6 caractères';
+        if (strlen($password) < 8) {
+            $errors[] = 'Mot de passe doit avoir au minimum 8 caractères';
+        }
+        // Valider mot de passe fort
+        if (!empty($password)) {
+            $passwordValidation = validateStrongPassword($password);
+            if (!$passwordValidation['valid']) {
+                $errors[] = 'Le mot de passe ne respecte pas les critères de sécurité:';
+                $errors = array_merge($errors, $passwordValidation['errors']);
+            }
         }
         if ($password !== $confirmPassword) {
             $errors[] = 'Les mots de passe ne correspondent pas';
         }
 
         if (!empty($errors)) {
-            include 'views/auth/register.php';
-            return;
+            $GLOBALS['register_errors'] = $errors;
+            return; // Le router affichera la vue avec les erreurs
         }
 
         // Créer l'utilisateur
@@ -115,8 +121,8 @@ class AuthController {
         
         if (!$userId) {
             $errors[] = 'Cet email est déjà utilisé';
-            include 'views/auth/register.php';
-            return;
+            $GLOBALS['register_errors'] = $errors;
+            return; // Le router affichera la vue avec les erreurs
         }
 
         // Auto-connexion

@@ -27,7 +27,7 @@ class ProductController {
     public function myProducts() {
         $this->requireAuth();
         $products = $this->productModel->getProductsByUser($_SESSION['user_id']);
-        include 'views/products/my_products.php';
+        include PROJECT_ROOT . 'views/products/my_products.php';
     }
 
     /**
@@ -54,7 +54,7 @@ class ProductController {
             exit;
         }
 
-        include 'views/products/detail.php';
+        include PROJECT_ROOT . 'views/products/detail.php';
     }
 
     /**
@@ -68,6 +68,10 @@ class ProductController {
             $errors = $this->validateProductForm();
 
             if (empty($errors)) {
+                // Gérer nutri_score : convertir la chaîne vide en NULL
+                $nutriScore = $_POST['nutri_score'] ?? '';
+                $nutriScore = empty($nutriScore) ? null : $nutriScore;
+
                 $productId = $this->productModel->create(
                     $_SESSION['user_id'],
                     $_POST['name'],
@@ -76,11 +80,12 @@ class ProductController {
                         'description' => $_POST['description'] ?? null,
                         'category' => $_POST['category'] ?? null,
                         'is_bio' => $_POST['is_bio'] ?? 0,
-                        'nutri_score' => $_POST['nutri_score'] ?? null
+                        'nutri_score' => $nutriScore
                     ]
                 );
 
                 if ($productId) {
+                    $_SESSION['success'] = 'Produit créé avec succès!';
                     header('Location: index.php?page=my-products');
                     exit;
                 } else {
@@ -89,7 +94,8 @@ class ProductController {
             }
         }
 
-        include 'views/products/form.php';
+        // Retourner pour que le router charge la vue avec le layout
+        return;
     }
 
     /**
@@ -116,6 +122,10 @@ class ProductController {
             $errors = $this->validateProductForm();
 
             if (empty($errors)) {
+                // Gérer nutri_score : convertir la chaîne vide en NULL
+                $nutriScore = $_POST['nutri_score'] ?? '';
+                $nutriScore = empty($nutriScore) ? null : $nutriScore;
+
                 $success = $this->productModel->update(
                     $_GET['id'],
                     $_SESSION['user_id'],
@@ -125,12 +135,13 @@ class ProductController {
                         'description' => $_POST['description'] ?? null,
                         'category' => $_POST['category'] ?? null,
                         'is_bio' => $_POST['is_bio'] ?? 0,
-                        'nutri_score' => $_POST['nutri_score'] ?? null
+                        'nutri_score' => $nutriScore
                     ]
                 );
 
                 if ($success) {
-                    header('Location: index.php?page=product&id=' . $_GET['id']);
+                    $_SESSION['success'] = 'Produit mis à jour avec succès!';
+                    header('Location: index.php?page=my-products');
                     exit;
                 } else {
                     $errors[] = 'Erreur lors de la mise à jour';
@@ -138,7 +149,8 @@ class ProductController {
             }
         }
 
-        include 'views/products/form.php';
+        // Retourner pour que le router charge la vue avec le layout
+        return;
     }
 
     /**
@@ -166,7 +178,11 @@ class ProductController {
             }
         }
 
-        include 'views/products/delete_confirm.php';
+        // Rendre $product disponible à la vue
+        $GLOBALS['product'] = $product;
+        
+        // Retourner pour laisser le router inclure avec le layout
+        return;
     }
 
     /**
@@ -186,6 +202,10 @@ class ProductController {
         }
         if (!is_numeric($price) || $price <= 0) {
             $errors[] = 'Le prix doit être un nombre positif';
+        }
+        // Vérifier que le prix n'est pas trop grand (max 999 999 999,99)
+        if (is_numeric($price) && $price > 999999999.99) {
+            $errors[] = 'Le prix ne doit pas dépasser 999 999 999,99€';
         }
         if (isset($_POST['nutri_score']) && $_POST['nutri_score'] && !in_array($_POST['nutri_score'], ['A', 'B', 'C', 'D', 'E'])) {
             $errors[] = 'Nutri-score invalide';

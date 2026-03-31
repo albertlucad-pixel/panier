@@ -160,4 +160,52 @@ function getTimeAgo($date) {
     if ($interval->i > 0) return 'il y a ' . $interval->i . ' minute(s)';
     return 'à l\'instant';
 }
+
+/**
+ * Valider un mot de passe fort
+ * Critères: 
+ * - Minimum 8 caractères
+ * - Au moins 1 lettre majuscule (A-Z)
+ * - Au moins 1 lettre minuscule (a-z)
+ * - Au moins 1 chiffre (0-9)
+ * - Au moins 1 caractère spécial (@$!%*?&)
+ * 
+ * @param string $password Mot de passe à valider
+ * @return array ['valid' => bool, 'message' => string]
+ */
+function validateStrongPassword($password) {
+    $errors = [];
+    
+    // Vérifier la longueur
+    if (strlen($password) < 8) {
+        $errors[] = 'Au minimum 8 caractères';
+    }
+    
+    // Vérifier majuscule
+    if (!preg_match('/[A-Z]/', $password)) {
+        $errors[] = 'Au moins 1 lettre majuscule (A-Z)';
+    }
+    
+    // Vérifier minuscule
+    if (!preg_match('/[a-z]/', $password)) {
+        $errors[] = 'Au moins 1 lettre minuscule (a-z)';
+    }
+    
+    // Vérifier chiffre
+    if (!preg_match('/[0-9]/', $password)) {
+        $errors[] = 'Au moins 1 chiffre (0-9)';
+    }
+    
+    // Vérifier caractère spécial
+    if (!preg_match('/[@$!%*?&]/', $password)) {
+        $errors[] = 'Au moins 1 caractère spécial (@$!%*?&)';
+    }
+    
+    if (empty($errors)) {
+        return ['valid' => true, 'message' => 'Mot de passe fort valide'];
+    }
+    
+    return ['valid' => false, 'errors' => $errors];
+}
 ?>
+

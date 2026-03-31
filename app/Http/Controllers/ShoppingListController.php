@@ -30,7 +30,7 @@ class ShoppingListController {
      */
     public function publicLists() {
         $lists = $this->shoppingListModel->getPublicLists();
-        include 'views/shopping_lists/public_list.php';
+        include PROJECT_ROOT . 'views/shopping_lists/public_list.php';
     }
 
     /**
@@ -54,7 +54,7 @@ class ShoppingListController {
         $creator = $this->userModel->getUserById($list['user_id']);
         $isOwner = isset($_SESSION['user_id']) && $_SESSION['user_id'] == $list['user_id'];
 
-        include 'views/shopping_lists/public_detail.php';
+        include PROJECT_ROOT . 'views/shopping_lists/public_detail.php';
     }
 
     /**
@@ -63,7 +63,7 @@ class ShoppingListController {
     public function myLists() {
         $this->requireAuth();
         $lists = $this->shoppingListModel->getListsByUser($_SESSION['user_id']);
-        include 'views/shopping_lists/my_lists.php';
+        include PROJECT_ROOT . 'views/shopping_lists/my_lists.php';
     }
 
     /**
@@ -88,7 +88,7 @@ class ShoppingListController {
         $totalCost = $this->shoppingListModel->calculateTotalCost($_GET['id']);
         $myProducts = $this->productModel->getProductsByUser($_SESSION['user_id']);
 
-        include 'views/shopping_lists/detail.php';
+        include PROJECT_ROOT . 'views/shopping_lists/detail.php';
     }
 
     /**
@@ -107,6 +107,22 @@ class ShoppingListController {
                 $errors[] = 'Le nom de la liste est obligatoire';
             }
 
+            // Vérifier qu'il y a au moins un produit sélectionné
+            $hasProducts = false;
+            if (isset($_POST['products']) && is_array($_POST['products'])) {
+                foreach ($_POST['products'] as $productId => $quantity) {
+                    // Les inputs disabled ne sont pas envoyés, donc si on les reçoit c'est qu'ils sont actifs
+                    $quantity = (int)$quantity;
+                    if ($quantity > 0) {
+                        $hasProducts = true;
+                        break;
+                    }
+                }
+            }
+            if (!$hasProducts) {
+                $errors[] = 'Vous devez sélectionner au moins un produit';
+            }
+
             if (empty($errors)) {
                 $listId = $this->shoppingListModel->create(
                     $_SESSION['user_id'],
@@ -115,9 +131,11 @@ class ShoppingListController {
                 );
 
                 if ($listId) {
-                    // Ajouter les produits sélectionnés
+                    // Ajouter les produits sélectionnés (seulement ceux non-disabled)
                     if (isset($_POST['products']) && is_array($_POST['products'])) {
                         foreach ($_POST['products'] as $productId => $quantity) {
+                            // Les inputs disabled ne sont pas envoyés
+                            $quantity = (int)$quantity;
                             if ($quantity > 0) {
                                 $this->shoppingListModel->addProductToList(
                                     $listId,
@@ -129,15 +147,22 @@ class ShoppingListController {
                         }
                     }
 
-                    header('Location: index.php?page=list&id=' . $listId);
+                    $_SESSION['success'] = 'Liste créée avec succès!';
+                    header('Location: index.php?page=my-lists');
                     exit;
                 } else {
                     $errors[] = 'Erreur lors de la création';
                 }
             }
+            // Si erreurs, les variables $errors, $myProducts sont disponibles pour la vue
         }
 
-        include 'views/shopping_lists/form.php';
+        // Assigner les variables au scope global pour qu'elles soient accessibles à la vue
+        $GLOBALS['errors'] = $errors;
+        $GLOBALS['myProducts'] = $myProducts;
+        
+        // Retourner pour que le router charge la vue avec le layout
+        return;
     }
 
     /**
@@ -176,30 +201,79 @@ class ShoppingListController {
                     [
                         'name' => $name,
                         'description' => $_POST['description'] ?? null,
+                        'is_public' => $_POST['is_public'] ?? 0,
                         'is_completed' => $_POST['is_completed'] ?? 0
                     ]
                 );
 
-                // Mettre à jour les produits
-                if (isset($_POST['products']) && is_array($_POST['products'])) {
-                    foreach ($_POST['products'] as $productId => $quantity) {
-                        if ($quantity > 0) {
-                            $this->shoppingListModel->updateProductInList(
-                                $_GET['id'],
-                                $productId,
-                                $quantity,
-                                $_POST['units'][$productId] ?? 'pcs'
-                            );
+                // Obtenir les produits actuellement dans la liste
+                $currentItems = $this->shoppingListModel->getListItems($_GET['id']);
+                $currentProductIds = array_map(function($item) { return $item['product_id']; }, $currentItems);
+                
+                // Obtenir les produits envoyés (cochés)
+                $sentProductIds = isset($_POST['products']) ? array_keys($_POST['products']) : [];
+                
+                // Supprimer les produits qui ont été décochés
+                $productsToRemove = array_diff($currentProductIds, $sentProductIds);
+                foreach ($productsToRemove as $productId) {
+                    // Trouver le lien dans la liste
+                    foreach ($currentItems as $item) {
+                        if ($item['product_id'] == $productId) {
+                            $this->shoppingListModel->removeProductFromList($_GET['id'], $item['item_link_id']);
+                            break;
                         }
                     }
                 }
 
-                header('Location: index.php?page=list&id=' . $_GET['id']);
+                // Mettre à jour les produits cochés
+                if (isset($_POST['products']) && is_array($_POST['products'])) {
+                    foreach ($_POST['products'] as $productId => $quantity) {
+                        $quantity = (int)$quantity;
+                        if ($quantity > 0) {
+                            // Vérifier si le produit existe déjà dans la liste
+                            $existingItem = null;
+                            foreach ($currentItems as $item) {
+                                if ($item['product_id'] == $productId) {
+                                    $existingItem = $item;
+                                    break;
+                                }
+                            }
+                            
+                            if ($existingItem) {
+                                // Produit existe: mettre à jour
+                                $this->shoppingListModel->updateProductInList(
+                                    $_GET['id'],
+                                    $productId,
+                                    $quantity,
+                                    $_POST['units'][$productId] ?? 'pcs'
+                                );
+                            } else {
+                                // Produit n'existe pas: ajouter
+                                $this->shoppingListModel->addProductToList(
+                                    $_GET['id'],
+                                    $productId,
+                                    $quantity,
+                                    $_POST['units'][$productId] ?? 'pcs'
+                                );
+                            }
+                        }
+                    }
+                }
+
+                $_SESSION['success'] = 'Liste mise à jour avec succès!';
+                header('Location: index.php?page=my-lists');
                 exit;
             }
         }
 
-        include 'views/shopping_lists/form_edit.php';
+        // Assigner les variables au scope global pour qu'elles soient accessibles à la vue
+        $GLOBALS['errors'] = $errors;
+        $GLOBALS['listData'] = $list;
+        $GLOBALS['myProducts'] = $myProducts;
+        $GLOBALS['listItems'] = $items;  // Ajouter les items actuels de la liste
+        
+        // Retourner pour que le router charge la vue avec le layout
+        return;
     }
 
     /**
@@ -311,7 +385,11 @@ class ShoppingListController {
             }
         }
 
-        include 'views/shopping_lists/delete_confirm.php';
+        // Rendre $shoppingList disponible à la vue
+        $GLOBALS['shoppingList'] = $list;
+        
+        // Retourner pour laisser le router inclure avec le layout
+        return;
     }
 }
 ?>

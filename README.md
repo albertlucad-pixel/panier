@@ -147,25 +147,18 @@ Le système supporte 3 rôles principaux:
 
 #### 1. Cloner/Télécharger le projet
 ```bash
-cd panier
+git clone https://github.com/albertlucad-pixel/composition
+```
+Placer le dossier `composition` dans le répertoire `www` de Laragon :
+```
+C:\laragon\www\panier\
 ```
 
 #### 2. Créer la base de données
 ```bash
-# Via Laragon (HeidiSQL)
-# Ou en terminal:
-mysql -u root -e "CREATE DATABASE panier_db"
-mysql -u root panier_db < script.sql
-```
-
-#### 3. Créer le compte administrateur
-```bash
-php create_admin.php
-```
-
-#### 4. Créer le compte de test (optionnel)
-```bash
-php create_test_account.php
+# Via Laragon en terminal:
+mysql -u root -e
+source script.sql
 ```
 
 #### 5. Lancer le serveur
@@ -206,11 +199,10 @@ Mot de passe: Test1234@
 
 - ✅ **Authentification**: Mots de passe hachés avec PASSWORD_BCRYPT
 - ✅ **Validation**: Côté serveur (données + permissions)
-- ✅ **Autorisation**: Basée sur les rôles (RBAC)
+- ✅ **Autorisation**: Basée sur les rôles (moindre privilège)
 - ✅ **Intégrité**: Contraintes DB (PK, FK, UNIQUE)
 - ✅ **Protection**: Vérification de propriété/rôle sur toutes les actions
 - ✅ **Échappement**: htmlspecialchars() sur tous les outputs
-- ✅ **Prepared Statements**: PDO avec liaison de paramètres
 
 ### Politique de mot de passe
 Minimum requis:
@@ -248,9 +240,7 @@ Exemple valide: `MyPass123!` ✅
 - **Backend**: PHP 8.1 (POO, MVC)
 - **Base de données**: MySQL 5.7+
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Patterns**: MVC, Pivot table (N,M)
-- **ORM**: PDO (Prepared statements)
-- **Sécurité**: PASSWORD_BCRYPT, RBAC, Protection CSRF (à implémenter)
+- **Sécurité**: PASSWORD_BCRYPT, moindre privilèges
 
 ## 📊 Diagrammes
 
@@ -258,9 +248,7 @@ Exemple valide: `MyPass123!` ✅
 Voir `SCHEMA_RELATIONNEL.md`
 - Diagramme ER
 - Relations et cardinalités
-- Indices pour optimisation
 - Intégrité référentielle
-- Normalisation BCNF
 
 ### Use Cases
 Voir `SCHEMA_USECASES.md`

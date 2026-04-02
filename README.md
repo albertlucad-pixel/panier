@@ -147,7 +147,7 @@ Le système supporte 3 rôles principaux:
 
 #### 1. Cloner/Télécharger le projet
 ```bash
-git clone https://github.com/albertlucad-pixel/composition
+git clone https://github.com/albertlucad-pixel/panier
 ```
 Placer le dossier `composition` dans le répertoire `www` de Laragon :
 ```
